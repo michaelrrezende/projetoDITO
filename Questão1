@@ -1,0 +1,42 @@
+Query:
+
+select A.Nome, A.Valor,
+(SELECT TAB6.traits.email as email
+FROM (SELECT id, Max(timestamp) as timestamp_email
+FROM `dito-data-scientist-challenge.tracking.dito` as C
+where C.traits.email IS NOT NULL
+group by C.id) AS X
+LEFT JOIN `dito-data-scientist-challenge.tracking.dito` TAB6 ON TAB6.id = X.id and TAB6.timestamp = x.timestamp_email
+where X.id = A.id) as Email,
+(SELECT TAB7.traits.phone as phone
+FROM (SELECT id, Max(timestamp) as timestamp_phone
+FROM `dito-data-scientist-challenge.tracking.dito` as C
+where C.traits.phone IS NOT NULL
+group by C.id) AS X
+LEFT JOIN `dito-data-scientist-challenge.tracking.dito` TAB7 ON TAB7.id = X.id and TAB7.timestamp = x.timestamp_phone
+where X.id = A.id) as Telefone
+from
+(SELECT TAB1.id, TAB2.traits.name as Nome, round(SUM(TAB1.properties.revenue),4) AS Valor, Max(TAB1.timestamp) as timestamp
+FROM `dito-data-scientist-challenge.tracking.dito` AS TAB1
+LEFT JOIN `dito-data-scientist-challenge.tracking.dito` TAB2 ON TAB1.id = TAB2.id and TAB2.type = 'identify'
+WHERE TAB1.type = 'track'
+GROUP BY TAB1.id,TAB2.traits.name
+ORDER BY Valor DESC
+LIMIT 5) as A
+
+Resultado:
+
+Linha|Nome|Valor|Email|Telefone
+1|Heloísa Ordonhes|48502.7|joshua_prosacco@gmail.com|(51) 91972-9639
+2|Mirella Soares|44334.4|velia.pagac@hotmail.com|(43) 97290-9288
+3|Fernanda Resende|42896.9|charlott.ledner@live.com|(33) 92311-0450
+4|Eloah Hermingues|42269.3|angelo@gmail.com|(55) 95273-6626
+5|Caio Carneiro|42230.0|sherry.schaefer@gmail.com|(44) 94315-6488
+
+Como fiz:
+Primeiramente, busquei identificar pela id e pelo nome,
+as pessoas e seus respectivos valores. Como estavam na mesma tabela, 
+fiz um left join pela ID e já consegui printá-los na tela. A partir disso, 
+fiz um subselect para email e telefone usando também a função de left join para criar 
+uma chave me atentando para a data dos mesmos, pois deveria ser a última. 
+Ordenei os valores e coloquei apenas os 5 primeiros.
