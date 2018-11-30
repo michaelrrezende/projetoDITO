@@ -1,0 +1,22 @@
+SELECT percentile_cont(QtdeDiasEntreDatas,0.50) over () AS Mediana
+FROM (SELECT TB1.id,DATE_DIFF(TB2.data_proxima_compra,TB1.data_compra, DAY) AS QtdeDiasEntreDatas
+FROM (SELECT DISTINCT id, data_compra, ROW_NUMBER() OVER (PARTITION BY id ORDER BY data_compra ASC) AS rk
+FROM (SELECT Distinct TAB1.id, DATE(TAB1.timestamp) AS data_compra 
+FROM `dito-data-scientist-challenge.tracking.dito` AS TAB1
+WHERE TAB1.type = 'track'
+ORDER BY TAB1.id, data_compra ASC)
+ORDER BY id, rk ASC) AS TB1
+LEFT JOIN ((SELECT DISTINCT id, data_compra AS data_proxima_compra, 
+    ROW_NUMBER() OVER (PARTITION BY id ORDER BY data_compra ASC) AS Seq
+    FROM (SELECT id, data_compra
+     ,ROW_NUMBER() OVER (PARTITION BY id ORDER BY data_compra ASC) AS rk
+    FROM (SELECT DISTINCT TAB1.id, DATE(TAB1.timestamp) AS data_compra 
+    FROM `dito-data-scientist-challenge.tracking.dito` AS TAB1
+    WHERE TAB1.type = 'track'
+    ORDER BY TAB1.id, data_compra ASC)
+    ORDER BY id, rk ASC)
+    WHERE rk > 1 )) AS TB2
+    ON TB1.id = TB2.id AND TB1.rk = TB2.Seq
+ORDER BY TB1.id, TB1.data_compra ASC)
+WHERE QtdeDiasEntreDatas IS NOT NULL
+LIMIT 1
