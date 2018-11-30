@@ -1,3 +1,5 @@
+Query:
+
 SELECT percentile_cont(QtdeDiasEntreDatas,0.50) over () AS Mediana
 FROM (SELECT TB1.id,DATE_DIFF(TB2.data_proxima_compra,TB1.data_compra, DAY) AS QtdeDiasEntreDatas
 FROM (SELECT DISTINCT id, data_compra, ROW_NUMBER() OVER (PARTITION BY id ORDER BY data_compra ASC) AS rk
@@ -20,3 +22,17 @@ LEFT JOIN ((SELECT DISTINCT id, data_compra AS data_proxima_compra,
 ORDER BY TB1.id, TB1.data_compra ASC)
 WHERE QtdeDiasEntreDatas IS NOT NULL
 LIMIT 1
+
+Resultado:
+
+Linha|Mediana	
+1|2.0
+
+Como fiz:
+
+Primeiro tinha que calcular a data da segunda compra, excluindo a primeira data, pois não importava naquele momento. Criei então um "id"
+para a próxima data de acordo com o cliente, depois disso, fiz um left join indicando a "id" que havia criado anteriormente, assim criei
+como se a segunda data fosse a primeira, a terceira fosse a segunda, e assim por diante, deixando assim a data anterior relacionada. Após
+isso, criei os "sub selects", onde fiz uma diferença entre as datas para calcular dentro da ID de cada cliente e outro para calcular a
+mediana de todas as datas, independente da ID do cliente. Assim, finalizei com uma mediana de dois dias, que significa que em média as
+pessoas compram de 2 em 2 dias.
