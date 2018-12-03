@@ -1,0 +1,110 @@
+require(dplyr)
+require(data.table)
+require(tidyr)
+require(caret)
+require(ROCR)
+
+## tratamento de dados
+
+base.desafio <- fread("Downloads/sto_challenge.csv",sep = ";",
+                      colClasses = c("email_id" = "character"))
+
+base.desafio$sohora <- substr(base.desafio$hora,1,2)
+
+base.desafio$action <- as.factor(base.desafio$action)
+
+summary(base.desafio)
+
+base.desafio$abriu <- if_else(base.desafio$action == "open", 1, 0)
+
+desafio.mod <- base.desafio %>% ungroup() %>% select(
+  id,sohora,abriu) %>% group_by(id,sohora,abriu) %>% distinct()
+
+taxa.abertura <- base.desafio %>% group_by(
+  sohora,action) %>% summarise(cont = n_distinct(id)) %>% spread(
+      action,cont) %>% mutate(tx.ab = sum(open)/sum(received),
+                              tx.click = sum(click)/sum(received))
+
+taxa.abertura[is.na(taxa.abertura)] <- 0
+
+## para criar tabela storytelling
+
+fwrite(taxa.abertura, file = "Documents/taxa_abertura.csv",sep = "|")
+
+### descritiva
+
+summary(taxa.abertura)
+boxplot(taxa.abertura$open)
+boxplot(taxa.abertura$received)
+boxplot(taxa.abertura$tx.ab)
+
+cor(taxa.abertura$open,taxa.abertura$received)
+
+hist(taxa.abertura$open)
+hist(taxa.abertura$received)
+
+##descritiva
+
+plot(taxa.abertura$sohora,taxa.abertura$tx.ab, type = "b", pch = 19, cex=0.5,lty=1,
+     col = "blue", xlab = "Hora de Abertura dos emails", ylab = "Taxa de Abertura",
+     main = "Frequência da Taxa de Abertura por Hora")
+axis(side=1,at=seq(0, 24, by=1))
+
+### particionando dados
+
+indice.treino <- createDataPartition(y=desafio.mod$abriu, p=0.75, list=FALSE)
+treino = desafio.mod[indice.treino, ]
+teste = desafio.mod[-indice.treino, ]
+sapply(desafio.mod, function(x) sum(is.na(x)))
+
+##modelo base completa
+
+modelo = glm (abriu ~ sohora, data = desafio.mod, family = binomial)
+summary(modelo)
+
+razao.chances = exp(coef(modelo))
+razao.chances
+
+plot(modelo)
+anova(modelo, test = "Chisq")
+
+##modelo treino
+
+modelo = glm (abriu ~ sohora, data = treino, family = binomial)
+summary(modelo)
+
+razao.chances = exp(coef(modelo))
+razao.chances
+
+plot(modelo)
+anova(modelo, test = "Chisq")
+
+##modelo teste
+
+modelo = glm (abriu ~ sohora, data = teste, family = binomial)
+summary(modelo)
+
+razao.chances = exp(coef(modelo))
+razao.chances
+
+plot(modelo)
+anova(modelo, test = "Chisq")
+
+#### preditores
+
+pred.Teste = predict(modelo,teste, type = "response")
+Teste_v2 = cbind(teste$abriu,teste$sohora,pred.Teste)
+
+pred.val = prediction(pred.Teste ,Teste_v2$abriu)
+
+
+# calculo da auc (area under the curve)
+auc = performance(pred.val,"auc")
+
+# Plota curva ROC
+performance = performance(pred.val, "tpr", "fpr")
+plot(performance, col = "blue", lwd = 5)
+
+#Calculo Estatística KS
+ks <- max(attr(performance, "y.values")[[1]] - (attr(performance, "x.values")[[1]]))
+ks
